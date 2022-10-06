@@ -45,11 +45,13 @@
 #define enableTempMeasurement 			0X01 		//when written to DIE_TEMPERATURE_CONFIG allows temperature reading to begin
 #define dieTempRdyEn					0X02 	  	//when written to INTERRUPT_ENABLE_2 allows interrupt to happen when temp is read complete
 #define allInterruptsEnable 			0b11100000 	//when written to INTERRUPT_ENABLE_1 enables all interrupts except when new sample is read
-#define defaultLedPulse					0X7F  		//project works with about 51mA on Red and IR led
+#define defaultLedPulse					0X1F  		//project works with about 51mA on Red and IR led
 #define	spo2Mode						0X03 		//SpO2 Mode configuration
-#define spo2ModeConfiguration 			0b01100111 // ADC range= 16384nA, SPO2_SAMPLE_RATE = 100, LED_PW=411
+#define spo2ModeConfiguration 			0b00100111 // ADC range= 4096nA, SPO2_SAMPLE_RATE = 100, LED_PW=411
 #define interruptEnable					0X03 		//enables interrupt
-#define fifoConfigurationData 			0b00110001 //SAMPLE_AVERAGE = 2,ROLLOVER_EN = 1, FIFO_A_FULL = 1
+#define fifoConfigurationData 			0b01010001 //SAMPLE_AVERAGE = 4,ROLLOVER_EN = 1, FIFO_A_FULL = 1
+
+///////////////////////////////////////////////Processing///////////////////////////////////////////////////////////////
 
 //max30102 structure
 typedef struct max30102 {
@@ -62,7 +64,6 @@ typedef struct max30102 {
 } max30102;
 
 
-
 __weak void max30102_plot(uint32_t ir_sample, uint32_t red_sample);
 
 void max30102_init(max30102 *obj, I2C_HandleTypeDef *hi2c);
@@ -72,8 +73,6 @@ void max30102_read(max30102 *obj, uint8_t reg, uint8_t *buf, uint16_t buflen);
 void max30102_reset(max30102 *obj);
 
 void max30102_clear_fifo(max30102 *obj);
-
-//void max30102_set_fifo_config(max30102 *obj, max30102_smp_ave_t smp_ave, uint8_t roll_over_en, uint8_t fifo_a_full);
 
 void max30102_set_mode(max30102 *obj); //spo2 mode
 void max30102_interrupt_config(max30102 *obj); //enable relavent interrupts
@@ -88,7 +87,10 @@ void max30102_set_die_temp_rdy(max30102 *obj);
 void max30102_interrupt_handler(max30102 *obj); //read interrupt and get relavant data
 void max30102_read_fifo(max30102 *obj); //read fifo register
 
-void max30102_read_fifo(max30102 *obj);
+//void max30102_read_fifo(max30102 *obj);
 void max30102_read_temp(max30102 *obj, int8_t *temp_int, uint8_t *temp_frac);
+
+
+//void push_fresh_sample(max30102 *obj, int *count);
 
 #endif

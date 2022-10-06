@@ -22,7 +22,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "algorithm.h"
 #include "max30102_lib.h"
+
 
 /* USER CODE END Includes */
 
@@ -69,9 +71,17 @@ void initiate_max30102_temp_measurement(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint32_t ir[32];
-uint32_t red [32];
-float t = 0;
+float t = 0; //temperature value
+
+uint32_t irBuffer[100]; //infrared LED sensor data
+uint32_t redBuffer[100];  //red LED sensor data
+
+int32_t bufferLength = 100; //data length
+int32_t spo2; //SPO2 value
+int8_t validSPO2; //indicator to show if the SPO2 calculation is valid
+int32_t heartRate; //heart rate value
+int8_t validHeartRate; //indicator to show if the heart rate calculation is valid
+uint8_t initialReading = 0;
 /* USER CODE END 0 */
 
 /**
@@ -111,6 +121,10 @@ int main(void)
   config_max30102_sensor();
   initiate_max30102_temp_measurement();
 
+
+
+ 	//calculate heart rate and SpO2 after first 100 samples (first 4 seconds of samples)
+ 	maxim_heart_rate_and_oxygen_saturation(irBuffer, bufferLength, redBuffer, &spo2, &validSPO2, &heartRate, &validHeartRate);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -121,20 +135,89 @@ int main(void)
     MX_USB_HOST_Process();
 
     /* USER CODE BEGIN 3 */
-//    max._ir_samples[0] = 300;
-
-    max30102_interrupt_handler(&max);
 
 
-    for(uint8_t i = 0; i<=32; i++)
+    if(initialReading == 0)
     {
-    	ir[i] = max._ir_samples[i];
-    	red[i] = max._red_samples[i];
+    	  for(uint8_t j = 0; j<3; j++)
+    	  {
+    		  HAL_Delay(30);
+
+    		  //first sample
+    		  if(j == 0)
+    		  {
+    			  max30102_interrupt_handler(&max);
+    			  if(max._ir_samples[25] == 0) j=0;
+    			 //store first 25 samples and store in buffer
+    			  for(uint8_t x = 0; x<=24; x++)
+    			  {
+    				  irBuffer[x] = max._ir_samples[x];
+    				  redBuffer[x] = max._red_samples[x];
+    			  }
+    		  }
+    		  //second sample
+    		  if(j == 1)
+    		  {
+    			  HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
+    			  if(max._ir_samples[25] == 0) j=1;
+    			  //store second 25 samples in buffer position 25-49
+    			  for(uint8_t x = 25; x<=49; x++)
+    			  {
+    				  irBuffer[x] = max._ir_samples[x-25];
+    				  redBuffer[x] = max._red_samples[x-25];
+    			  }
+    		  }
+    		  //third sample
+    		  if(j==2)
+    		  {
+    			  if(max._ir_samples[25] == 0) j=2;
+    			  //store samples in buffer position 50-74
+    			  for(uint8_t x = 50; x<=74; x++)
+    			  {
+    				  irBuffer[x] = max._ir_samples[x-50];
+    				  redBuffer[x] = max._red_samples[x-50];
+    			  }
+    		  }
+    		  //forth sample
+    		  if(j==3)
+    		  {
+    			  if(max._ir_samples[25] == 0) j=3;
+    			  //store samples in buffer position 74-99
+    			  for(uint8_t x=74; x<=99; x++)
+    			  {
+    				  irBuffer[x] = max._ir_samples[x-74];
+    				  redBuffer[x] = max._red_samples[x-74];
+    			  }
+    		  }
+
+    	  }
+    	  initialReading = 1;
     }
 
-    t = max.temperature;
-//    HAL_Delay(300);
-//    initiate_max30102_temp_measurement();
+  //dumping the first 25 sets of samples in the memory and shift the last 75 sets of samples to the top
+      for (uint8_t i = 25; i < 100; i++)
+      {
+        redBuffer[i - 25] = redBuffer[i];
+        irBuffer[i - 25] = irBuffer[i];
+      }
+
+  //take 25 sets of samples before calculating the heart rate.
+      for(int8_t k = 0; k<=3; k++)
+      {
+    	  max30102_interrupt_handler(&max);
+    	  for(int8_t i = 75; i<100; i++)
+    	  {
+    		  irBuffer[i] = max._ir_samples[i - 75];
+    		  redBuffer[i] = max._red_samples[i - 75];
+    	  }
+    	  HAL_Delay(35);
+      }
+
+      //After gathering 25 new samples recalculate HR and SP02
+      maxim_heart_rate_and_oxygen_saturation(irBuffer, bufferLength, redBuffer, &spo2, &validSPO2, &heartRate, &validHeartRate);
+
+      t = max.temperature;
+
 
 
   }

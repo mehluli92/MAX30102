@@ -5,7 +5,6 @@ extern "C"
 {
 #endif
 
-#include "algorithm.h"
 
 /**
  * @brief Built-in plotting function. Called during an interrupt to print/plot the current sample.
@@ -185,7 +184,9 @@ void max30102_interrupt_handler(max30102 *obj)
     	if(((a>>7) & 0X01) == 1 )
     	{
     	//Interrupt becoming full now read sensor FIFO data
-	     max30102_read_fifo(obj);
+//   	 	 HAL_GPIO_TogglePin(GPIOD, ); //To show that readings are happening
+    		max30102_read_fifo(obj);
+
     	}
 
     	uint8_t c = reg[0];
@@ -215,14 +216,9 @@ void max30102_read_fifo(max30102 *obj)
 
     uint8_t num_samples = 0;
 
-    if(wr_ptr > 0 )
-    {
-    	HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_15);
-    }
-
+    HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_15);
 
     num_samples  = ((uint8_t)wr_ptr - (uint8_t)rd_ptr + 32)%32;
-
 
     for(uint8_t i = 0; i< num_samples; i++)
     {
